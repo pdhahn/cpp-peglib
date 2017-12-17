@@ -1210,7 +1210,7 @@ public:
         size_t            len;
         const char*       error_pos;
         const char*       message_pos;
-        const std::string message;
+        std::string       message;
     };
 
     Definition()
@@ -1342,8 +1342,24 @@ public:
         holder_->accept(v);
     }
 
-    std::shared_ptr<Ope> get_core_operator() {
+    std::shared_ptr<Ope> get_core_operator() const {
         return holder_->ope_;
+    }
+
+    int setflags(const std::unordered_map<std::string, Definition>& grammar, const std::string& from) {
+        try {
+            const Definition& other = grammar.at( from );
+            ignoreSemanticValue = other.ignoreSemanticValue;
+            enablePackratParsing = other.enablePackratParsing;
+        } catch( ... ) {
+            return 0;
+        }
+        return 1;
+    }
+
+    int setflags(const std::shared_ptr< std::unordered_map<std::string, Definition> >& grammar, const std::string& from) {
+        // if ( !grammar ) return -1;
+        return setflags( *grammar, from );
     }
 
     std::string                    name;
@@ -2333,6 +2349,23 @@ public:
 
     parser(const char* s)
         : parser(s, strlen(s)) {}
+
+    parser(std::shared_ptr<Grammar> grammar, const std::string& start) {
+	grammar_ = grammar;
+	start_ = start;
+    }
+
+    parser(const Grammar& grammar, const std::string& start, bool keepFlags = false) {
+        // note the copy constructor for Definition class does not copy flags
+        grammar_ = std::make_shared<Grammar>( grammar );
+        if (keepFlags) {
+            auto& dst_g = *grammar_;
+            for (auto& y: dst_g) {
+                 (void)y.second.setflags( grammar, y.first );
+            }
+        }
+        start_ = start;
+    }
 
     operator bool() {
         return grammar_ != nullptr;
